@@ -1,3 +1,6 @@
+// author: ARTHUR THOMPSON JOHNSON
+// nov 9 2019
+
 byte dirPinR = 6;
 byte stepPinR = 3;
 byte dirPinL = 7;
