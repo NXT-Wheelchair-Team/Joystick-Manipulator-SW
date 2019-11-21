@@ -1,19 +1,9 @@
 #!/usr/bin/python
-import sys
-import argparse
 import zmq
-import random
-import sys
 import time
-import json
 
+from src.JoystickInterface import Communications as comms
 from src.JoystickInterface.InstructionTranslator import *
-
-port = "5556"
-context = zmq.Context()
-socket = context.socket(zmq.PAIR)
-socket.connect("tcp://localhost:%s" % port)
-
 
 def is_json(myjson):
   try:
@@ -56,13 +46,13 @@ def validate_json(json_dict):
     return True
 
 
-def main_run(config_name):
+def main_run(config_name, recv_socket, send_socket):
     while True:
-        msg = socket.recv()
+        msg = recv_socket.recv()
         msg = msg.decode("utf-8")
 
-        socket.send_string("client message to server1")
-        socket.send_string("client message to server2")
+        recv_socket.send_string("client message to server1")
+        recv_socket.send_string("client message to server2")
 
 
         if is_json(msg) == True:
@@ -72,15 +62,23 @@ def main_run(config_name):
                 break
 
             translator = Translator(config_name)
-            true_magnitude = translator.percent_to_mag(json_recv['Magnitude'])
-            x,y = translator.polar_to_cartesian(json_recv['Angle'], true_magnitude)
+            x,y = translator.polar_to_cartesian(json_recv['Angle'], json_recv['Magnitude'])
             print("X Coordinate: ",x, "Y Coordinate:", y)
             print(msg)
+            coord_dict = {'x': x,
+                          'y': y}
+            # send_socket.send_json(coord_dict) # TODO: Uncomment when arduino side is ready
         else:
             print("There was a problem with loading the json")
 
         time.sleep(1)
 
+def setup_comms():
+
+    recv_socket = comms.setup_recv_socket('localhost', 9784)
+    send_socket = comms.setup_send_socket('*', 5555)
+
+    return recv_socket, send_socket
 
 
 
@@ -89,4 +87,8 @@ if __name__ == '__main__':
     parser.add_argument("-config_name", type = str, default = 'main_config.txt')
     args = parser.parse_args()
     config_name = args.config_name
-    main_run(config_name)
+
+    recv_socket, send_socket = setup_comms()
+
+
+    main_run(config_name, recv_socket, send_socket)

@@ -4,7 +4,7 @@ import sys
 import json
 import time
 
-port = "5556"
+port = "9784"
 context = zmq.Context()
 socket = context.socket(zmq.PAIR)
 socket.bind("tcp://*:%s" % port)
@@ -34,6 +34,6 @@ json_obj = json.dumps(test_dict)
 while True:
     # socket.send_string("Server message to client3")
     socket.send_string(json_obj)
-    msg = socket.recv()
-    print(msg)
+    # msg = socket.recv()
+    # print(msg)
     time.sleep(1)
