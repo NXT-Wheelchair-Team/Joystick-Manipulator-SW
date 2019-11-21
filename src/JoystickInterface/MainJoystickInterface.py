@@ -51,11 +51,7 @@ def main_run(config_name, recv_socket, send_socket):
         msg = recv_socket.recv()
         msg = msg.decode("utf-8")
 
-        recv_socket.send_string("client message to server1")
-        recv_socket.send_string("client message to server2")
-
-
-        if is_json(msg) == True:
+        if is_json(msg):
             json_recv = json.loads(msg)
             if not validate_json(json_recv):
                 print("JSON is not valid / not conforming to API, please verify message being sent. Ending program...")
@@ -67,7 +63,9 @@ def main_run(config_name, recv_socket, send_socket):
             print(msg)
             coord_dict = {'x': x,
                           'y': y}
-            # send_socket.send_json(coord_dict) # TODO: Uncomment when arduino side is ready
+
+            send_socket.send_json(coord_dict)
+
         else:
             print("There was a problem with loading the json")
 
@@ -89,6 +87,4 @@ if __name__ == '__main__':
     config_name = args.config_name
 
     recv_socket, send_socket = setup_comms()
-
-
     main_run(config_name, recv_socket, send_socket)
