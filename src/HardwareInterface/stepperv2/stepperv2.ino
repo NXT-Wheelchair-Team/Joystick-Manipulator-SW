@@ -8,13 +8,15 @@ byte stepPinL = 4;
 byte enablePin = 8;
 int stepLen = 2000; // 'speed' of steppers
 float curX = 1; // current x
-float curY = 3; // current y
-float newX = 1; // recieved x
-float newY = 1; // recieved y
+float curY = 1; // current y
+float newX =1; // recieved x
+float newY =1; // recieved y
 float inPerstep = 0.00096; // inches per step, might not be accurate needs testing
 long stepsR = 0; // calculated steps to move right stepper
 long stepsL = 0; // calculated steps to move left stepper
 int res = 40; // arbitrary num determing resolution of movement
+int incomingByte = 0;
+
 
 void setup() {
   pinMode(enablePin, OUTPUT);
@@ -23,16 +25,23 @@ void setup() {
   pinMode(stepPinR, OUTPUT);
   pinMode(dirPinL, OUTPUT);
   pinMode(stepPinL, OUTPUT);
-  Serial.begin(115200);
+  Serial.begin(9600);
 }
 
 void loop() {
   Serial.println("loop");
   stepCalc();
   moveCntrl();
-  delay(1000000);
+  while (true) {
+  if (Serial.available() > 0) {
+    // read the incoming byte:
+    incomingByte = Serial.read();
 
-
+    // say what you got:
+    Serial.print("I received: ");
+    Serial.println(incomingByte);
+  }
+  }
 }
 
 void stepMoveR(int steps) { // moves right motor 'steps' num of steps
@@ -40,7 +49,7 @@ void stepMoveR(int steps) { // moves right motor 'steps' num of steps
       digitalWrite(stepPinR, HIGH);
       digitalWrite(stepPinR, LOW);
       delayMicroseconds(stepLen);
-   
+      
   }
 }
 
