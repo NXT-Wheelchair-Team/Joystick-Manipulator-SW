@@ -94,10 +94,10 @@ void NEWDATA() {
       chrY += receivedChars[i];
     }
     
-    newX = chrX.toFloat();
+    newY = chrX.toFloat();
     chrX = "";
     Serial.println(newX);
-    newY = chrY.toFloat();
+    newX = chrY.toFloat();
     chrY = "";
     Serial.println(newY);
     newData = false;
@@ -184,6 +184,7 @@ void stepCalc() { // calcultes how much x and y need to change, calculates how m
 void moveCntrl() { // divides total movement into small steps for smoother movement, calls the move functions.
   int numR = stepsR / res; // R step lenghts
   int numL = stepsL / res; // L step lengths
+
   remR = stepsR % res;
   remL = stepsL % res;
   int r = 0;
