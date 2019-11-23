@@ -1,6 +1,12 @@
 #!/usr/bin/python
+import time
+
 import zmq
 import time
+import serial
+
+from ipykernel import serialize
+from serial.urlhandler.protocol_alt import serial_class_for_url
 
 from src.JoystickInterface import Communications as comms
 from src.JoystickInterface.InstructionTranslator import *
@@ -47,29 +53,39 @@ def validate_json(json_dict):
 
 
 def main_run(config_name, recv_socket, send_socket):
-    while True:
-        msg = recv_socket.recv()
-        msg = msg.decode("utf-8")
+    time_of_last_msg = 0
+    with serial.Serial("COM9", 9600) as ser:
+        while True:
+            msg = recv_socket.recv_json()
+            # print(msg)
 
-        if is_json(msg):
-            json_recv = json.loads(msg)
-            if not validate_json(json_recv):
+            # recv_socket.send_string("client message to server1")
+            # recv_socket.send_string("client message to server2")
+
+            if not validate_json(msg):
                 print("JSON is not valid / not conforming to API, please verify message being sent. Ending program...")
                 break
 
             translator = Translator(config_name)
-            x,y = translator.polar_to_cartesian(json_recv['Angle'], json_recv['Magnitude'])
-            print("X Coordinate: ",x, "Y Coordinate:", y)
-            print(msg)
-            coord_dict = {'x': x,
-                          'y': y}
+            x,y = translator.polar_to_cartesian(msg['Angle'], msg['Magnitude'])
+            if time.time() - time_of_last_msg > 4:
+                if x > 2:
+                    x = 2
+                elif x < 1:
+                    x = 1
+                if y > 2:
+                    y = 2
+                elif y < 1:
+                    y = 1
 
-            send_socket.send_json(coord_dict)
+                # print("X Coordinate: ", x, "Y Coordinate:", y)
+                command_to_send = "<{},{}>".format(x, y)
+                print("Before")
+                ser.write(command_to_send.encode())
+                time_of_last_msg = time.time()
+                print(command_to_send)
 
-        else:
-            print("There was a problem with loading the json")
-
-        time.sleep(1)
+            time.sleep(.001)
 
 def setup_comms():
 

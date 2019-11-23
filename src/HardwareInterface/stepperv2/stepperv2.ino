@@ -6,15 +6,25 @@ byte stepPinR = 3;
 byte dirPinL = 7;
 byte stepPinL = 4;
 byte enablePin = 8;
-int stepLen = 1000; // 'speed' of steppers
-int curX = 1; // current x
-int curY = 1; // current y
-int newX = 0; // recieved x
-int newY = 0; // recieved y
+int stepLen = 2000; // 'speed' of steppers
+float curX = 1.5; // current x
+float curY = 1.5; // current y
+float newX = 1.5; // recieved x
+float newY = 1.5; // recieved y
 float inPerstep = 0.00096; // inches per step, might not be accurate needs testing
 long stepsR = 0; // calculated steps to move right stepper
 long stepsL = 0; // calculated steps to move left stepper
-int res = 200; // arbitrary num determing resolution of movement
+long remR;
+long remL;
+int res = 40; // arbitrary num determing resolution of movement
+int incomingByte = 0;
+int BREAK;
+const byte numChars = 32;
+char receivedChars[numChars];
+boolean newData = false;
+String chrY;
+String chrX;
+boolean NRC = false;
 
 void setup() {
   pinMode(enablePin, OUTPUT);
@@ -23,33 +33,97 @@ void setup() {
   pinMode(stepPinR, OUTPUT);
   pinMode(dirPinL, OUTPUT);
   pinMode(stepPinL, OUTPUT);
-  Serial.begin(115200);
+  Serial.begin(9600);
 }
 
 void loop() {
   Serial.println("loop");
-
   stepCalc();
   moveCntrl();
-  delay(1000000);
+  NRC = true;
+  while (NRC) {
+    MARKERS();
+    NEWDATA();
 
+  }
 
 }
+void MARKERS() {
+  static boolean recvInProgress = false;
+  static byte ndx = 0;
+  char startMarker = '<';
+  char endMarker = '>';
+  char rc;
+
+  // if (Serial.available() > 0) {
+  while (Serial.available() > 0 && newData == false) {
+    rc = Serial.read();
+
+    if (recvInProgress == true) {
+      if (rc != endMarker) {
+        receivedChars[ndx] = rc;
+        ndx++;
+        if (ndx >= numChars) {
+          ndx = numChars - 1;
+        }
+      }
+      else {
+        receivedChars[ndx] = '\0'; // terminate the string
+        recvInProgress = false;
+        ndx = 0;
+        newData = true;
+      }
+    }
+
+    else if (rc == startMarker) {
+      recvInProgress = true;
+    }
+  }
+}
+
+
+
+void NEWDATA() {
+  if (newData == true) {    
+    for(int n = 0; receivedChars[n] != ','; n++){
+      chrX += receivedChars[n];
+      BREAK = n;
+
+    }
+    for(int i = BREAK+2; receivedChars[i] != '\0'; i++){
+      chrY += receivedChars[i];
+    }
+    
+    newY = chrX.toFloat();
+    chrX = "";
+    Serial.println(newX);
+    newX = chrY.toFloat();
+    chrY = "";
+    Serial.println(newY);
+    newData = false;
+        NRC = false;
+
+    }
+}
+
+
+
 
 void stepMoveR(int steps) { // moves right motor 'steps' num of steps
   for (int i = 0; i < steps; i++) {
-      digitalWrite(stepPinR, HIGH);
-      digitalWrite(stepPinR, LOW);
-      delayMicroseconds(stepLen);
-   
+    digitalWrite(stepPinR, HIGH);
+    digitalWrite(stepPinR, LOW);
+    delayMicroseconds(stepLen);
+
   }
 }
 
 void stepMoveL(int steps) { // moves left motor 'steps' num of steps
   for (int i = 0; i < steps; i++) {
-      digitalWrite(stepPinL, HIGH);
-      digitalWrite(stepPinL, LOW);
-      delayMicroseconds(stepLen);
+    digitalWrite(stepPinL, HIGH);
+    delayMicroseconds(200);
+    digitalWrite(stepPinL, LOW);
+    delayMicroseconds(stepLen);
   }
 }
 
@@ -59,9 +133,18 @@ void stepCalc() { // calcultes how much x and y need to change, calculates how m
   long newstepsX = newX / inPerstep; // converts x to steps
   long newstepsY = newY / inPerstep; // converts y to steps
   long oldstepsX = curX / inPerstep;
-  long oldstepsY = curX / inPerstep;
-  long c = 2/inPerstep;
-  
+  long oldstepsY = curY / inPerstep;
+  long c = 2 / inPerstep;
+  Serial.print("newStepsX = ");
+  Serial.println(newstepsX);
+  Serial.print("newStepsY = ");
+  Serial.println(newstepsY);
+
+  Serial.print("oldStepsX = ");
+  Serial.println(oldstepsX);
+  Serial.print("oldStepsY = ");
+  Serial.println(oldstepsY);
+
   long xsq = sq(newstepsX);
   long xsq2 = sq(c - newstepsX);
   long ysq = sq(newstepsY);
@@ -73,24 +156,24 @@ void stepCalc() { // calcultes how much x and y need to change, calculates how m
 
   long oldstepsR = sqrt(oldxsq2 + oldysq);
   long oldstepsL = sqrt(oldxsq + oldysq);
-  
+
   stepsR = sqrt(xsq2 + ysq); // calc R steps
   stepsL = sqrt(xsq + ysq); // calc L steps
 
-  if (oldstepsR > stepsR){
-    digitalWrite(stepPinR, LOW); // right reverse
+  if (oldstepsR > stepsR) {
+    digitalWrite(dirPinR, LOW); // right reverse
     Serial.println("Right Reverse");
   }
-  if (oldstepsR < stepsR){
-    digitalWrite(stepPinR, HIGH); // right forward
+  if (oldstepsR < stepsR) {
+    digitalWrite(dirPinR, HIGH); // right forward
     Serial.println("Right Forward");
   }
-  if (oldstepsL > stepsL){
-    digitalWrite(stepPinL, LOW); // left reverse
+  if (oldstepsL > stepsL) {
+    digitalWrite(dirPinL, LOW); // left reverse
     Serial.println("Left Reverse");
   }
-  if (oldstepsL < stepsL){
-    digitalWrite(stepPinL, HIGH); //left forward
+  if (oldstepsL < stepsL) {
+    digitalWrite(dirPinL, HIGH); //left forward
     Serial.println("Left Forward");
   }
   stepsR = abs(oldstepsR - stepsR);
@@ -98,25 +181,30 @@ void stepCalc() { // calcultes how much x and y need to change, calculates how m
 }
 
 
-void moveCntrl(){ // divides total movement into small steps for smoother movement, calls the move functions.
-  int numR = stepsR/res; // R step lenghts
-  int numL = stepsL/res; // L step lengths
+void moveCntrl() { // divides total movement into small steps for smoother movement, calls the move functions.
+  int numR = stepsR / res; // R step lenghts
+  int numL = stepsL / res; // L step lengths
+
+  remR = stepsR % res;
+  remL = stepsL % res;
   int r = 0;
   int l = 0;
   Serial.print("stepsR = ");
   Serial.println(stepsR);
   Serial.print("stepsL = ");
   Serial.println(stepsL);
-  while (r < stepsR || l < stepsL){
+  while (r < stepsR || l < stepsL) {
     Serial.print("r = ");
     Serial.println(r);
     Serial.print("l = ");
     Serial.println(l);
-    if (r < stepsR){
+    delay(4);
+    if (r < stepsR) {
       stepMoveR(numR);
       r += numR;
     }
-    if (l < stepsL){
+    delay(4);
+    if (l < stepsL) {
       stepMoveL(numL);
       l += numL;
     }
@@ -127,5 +215,5 @@ void moveCntrl(){ // divides total movement into small steps for smoother moveme
   curY = newY;
   Serial.print("NEW Y = ");
   Serial.print(newY);
-  
+
 }
