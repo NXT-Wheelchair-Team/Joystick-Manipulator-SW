@@ -1,2 +1,5 @@
 *.idea
 *.pyc
+.DS_STORE
+*.DS_STORE
+src/HardwareInterface/.DS_STORE
