@@ -117,6 +117,4 @@ if __name__ == '__main__':
     config_name = args.config_name
 
     recv_socket, send_socket = setup_comms()
-
-
     main_run(config_name, recv_socket, send_socket)

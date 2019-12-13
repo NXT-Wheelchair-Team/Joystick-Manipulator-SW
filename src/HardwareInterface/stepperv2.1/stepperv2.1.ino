@@ -1,5 +1,5 @@
 // author: ARTHUR THOMPSON JOHNSON
-// nov 9 2019
+// nov 24 2019
 
 byte dirPinR = 6;
 byte stepPinR = 3;
@@ -7,16 +7,29 @@ byte dirPinL = 7;
 byte stepPinL = 4;
 byte enablePin = 8;
 int stepLen = 1200; // 'speed' of steppers
+float inPerstep = 0.00096; // inches per step, might not be accurate needs testing
+
 float curX = 1.5; // current x
 float curY = 1.5; // current y
 float newX = 1.5; // recieved x
 float newY = 1.5; // recieved y
-float inPerstep = 0.00096; // inches per step, might not be accurate needs testing
-long stepsR = 0; // calculated steps to move right stepper
-long stepsL = 0; // calculated steps to move left stepper
-long remR;
-long remL;
+
+long newstepsX;
+long newstepsY;
+long oldstepsX;
+long oldstepsY;
+
+long xsq;
+long xsq2;
+long ysq;
+long c = 2 / inPerstep;
+
+long stepsR; // calculated steps to move right stepper
+long stepsL; // calculated steps to move left stepper
+long oldstepsR;
+long oldstepsL;
 int res = 40; // arbitrary num determing resolution of movement
+
 int incomingByte = 0;
 int BREAK;
 const byte numChars = 32;
@@ -25,6 +38,9 @@ boolean newData = false;
 String chrY;
 String chrX;
 boolean NRC = false;
+
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
 void setup() {
   pinMode(enablePin, OUTPUT);
@@ -53,6 +69,13 @@ void loop() {
   }
 
 }
+
+
+///////////////////////////////////////////////////////////////////////////////
+//// SERIAL STUFF
+///////////////////////////////////////////////////////////////////////////////
+
+
 void MARKERS() {
   static boolean recvInProgress = false;
   static byte ndx = 0;
@@ -86,8 +109,6 @@ void MARKERS() {
   }
 }
 
-
-
 void NEWDATA() {
   if (newData == true) {    
     for(int n = 0; receivedChars[n] != ','; n++){
@@ -111,14 +132,16 @@ void NEWDATA() {
     }
 }
 
-
-
+///////////////////////////////////////////////////////////////////////////////
+//// STEP MOVEMENT
+///////////////////////////////////////////////////////////////////////////////
 
 void stepMoveR(int steps) { // moves right motor 'steps' num of steps
   for (int i = 0; i < steps; i++) {
     digitalWrite(stepPinR, HIGH);
     digitalWrite(stepPinR, LOW);
     delayMicroseconds(stepLen);
+    oldstepsR ++;
 
   }
 }
@@ -129,43 +152,20 @@ void stepMoveL(int steps) { // moves left motor 'steps' num of steps
     delayMicroseconds(200);
     digitalWrite(stepPinL, LOW);
     delayMicroseconds(stepLen);
+    oldstepsL ++;
   }
 }
 
+
+///////////////////////////////////////////////////////////////////////////////
+//// STEP CALCULATIONS
+///////////////////////////////////////////////////////////////////////////////
+
+
+
 void stepCalc() { // calcultes how much x and y need to change, calculates how many total steps R and L need to step
-  Serial.println("stepCalc");
-
-  long newstepsX = newX / inPerstep; // converts x to steps
-  long newstepsY = newY / inPerstep; // converts y to steps
-  long oldstepsX = curX / inPerstep;
-  long oldstepsY = curY / inPerstep;
-  long c = 2 / inPerstep;
-  Serial.print("newStepsX = ");
-  Serial.println(newstepsX);
-  Serial.print("newStepsY = ");
-  Serial.println(newstepsY);
-
-  Serial.print("oldStepsX = ");
-  Serial.println(oldstepsX);
-  Serial.print("oldStepsY = ");
-  Serial.println(oldstepsY);
-
-
-  long xsq = sq(newstepsX);
-  long xsq2 = sq(c - newstepsX);
-  long ysq = sq(newstepsY);
-
-  long oldxsq = sq(oldstepsX);
-  long oldxsq2 = sq(c - oldstepsX);
-  long oldysq = sq(oldstepsY);
-
-
-  long oldstepsR = sqrt(oldxsq2 + oldysq);
-  long oldstepsL = sqrt(oldxsq + oldysq);
-
-  stepsR = sqrt(xsq2 + ysq); // calc R steps
-  stepsL = sqrt(xsq + ysq); // calc L steps
-
+  oldCalc();
+  newCalc();
   if (oldstepsR > stepsR) {
     digitalWrite(dirPinR, LOW); // right reverse
     Serial.println("Right Reverse");
@@ -185,6 +185,37 @@ void stepCalc() { // calcultes how much x and y need to change, calculates how m
   stepsR = abs(oldstepsR - stepsR);
   stepsL = abs(oldstepsL - stepsL);
 }
+
+
+void newCalc(){
+  newstepsX = newX / inPerstep;
+  newstepsY = newY /inPerstep;
+  
+  xsq = sq(newstepsX);
+  xsq2 = sq(c - newstepsX);
+  ysq = sq(newstepsY);
+  
+  stepsR = sqrt(xsq2 + ysq);
+  stepsL = sqrt(xsq + ysq);
+  
+}
+
+void oldCalc(){
+  oldstepsX = curX / inPerstep;
+  oldstepsY = curY / inPerstep;
+
+  xsq = sq(oldstepsX);
+  xsq2 = sq(c - oldstepsX);
+  ysq = sq(newstepsY);
+  
+  oldstepsR = sqrt(xsq2 + ysq);
+  oldstepsL = sqrt(xsq + ysq);
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+//// MOVE CONTROLS 
+///////////////////////////////////////////////////////////////////////////////
 
 
 void moveCntrl() { // divides total movement into small steps for smoother movement, calls the move functions.

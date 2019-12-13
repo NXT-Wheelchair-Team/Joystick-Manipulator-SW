@@ -1,8 +1,10 @@
+#!/usr/bin/python
 import zmq
 import random
 import sys
 import json
 import time
+
 
 port = "9784"
 context = zmq.Context()
@@ -33,6 +35,7 @@ json_obj = json.dumps(test_dict)
 
 while True:
     # socket.send_string("Server message to client3")
+    print("Sending: " + json_obj)
     socket.send_string(json_obj)
     # msg = socket.recv()
     # print(msg)
