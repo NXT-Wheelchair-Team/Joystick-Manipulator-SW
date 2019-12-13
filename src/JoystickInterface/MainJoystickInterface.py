@@ -6,6 +6,7 @@ import time
 import serial
 
 from ipykernel import serialize
+from serial import SerialTimeoutException
 from serial.urlhandler.protocol_alt import serial_class_for_url
 
 from src.JoystickInterface import Communications as comms
@@ -54,9 +55,13 @@ def validate_json(json_dict):
 
 def main_run(config_name, recv_socket, send_socket):
     time_of_last_msg = 0
-    with serial.Serial("COM9", 9600) as ser:
+    poller = zmq.Poller()
+    poller.register(recv_socket, zmq.POLLIN)
+    with serial.Serial("COM9", 9600, write_timeout=1) as ser:
         while True:
-            msg = recv_socket.recv_json()
+            evts = dict(poller.poll())
+            if recv_socket in evts:
+                msg = recv_socket.recv_json()
             # print(msg)
 
             # recv_socket.send_string("client message to server1")
@@ -68,20 +73,29 @@ def main_run(config_name, recv_socket, send_socket):
 
             translator = Translator(config_name)
             x,y = translator.polar_to_cartesian(msg['Angle'], msg['Magnitude'])
-            if time.time() - time_of_last_msg > 4:
+            if time.time() - time_of_last_msg > .1:
                 if x > 2:
                     x = 2
                 elif x < 1:
                     x = 1
-                if y > 2:
-                    y = 2
-                elif y < 1:
-                    y = 1
+                if y > 2.5:
+                    y = 2.5
+                elif y < .5:
+                    y = .5
+
+                x = round(x, 2)
+                y = round(y, 2)
 
                 # print("X Coordinate: ", x, "Y Coordinate:", y)
                 command_to_send = "<{},{}>".format(x, y)
                 print("Before")
-                ser.write(command_to_send.encode())
+                try:
+                    ser.write(command_to_send.encode())
+                except SerialTimeoutException:
+                    ser.reset_output_buffer()
+                    ser.close()
+                    ser.open()
+                    print("timeout")
                 time_of_last_msg = time.time()
                 print(command_to_send)
 
